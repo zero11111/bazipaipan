@@ -234,12 +234,15 @@ def display_wuxing_tab(bracelet_data):
     # ==============================================
     st.subheader("🎯 五级层级用神分析")
 
+    # 获取分析报告
+    analysis_report = bracelet_data.get('analysis_report', '')
+
     # 第一用神
     if 'yong_shen_1' in bracelet_data:
         yong1 = bracelet_data['yong_shen_1']
         if isinstance(yong1, dict) and yong1.get('name'):
-            # 获取推导理由
-            reason = yong1.get('reason', '')
+            # 从 analysis_report 中提取第一用神推导理由
+            reason = extract_yong_reason(analysis_report, "第一用神推导")
 
             st.markdown(f"""
             <div class='success-box'>
@@ -268,7 +271,8 @@ def display_wuxing_tab(bracelet_data):
     if 'yong_shen_2' in bracelet_data:
         yong2 = bracelet_data['yong_shen_2']
         if isinstance(yong2, dict) and yong2.get('name'):
-            reason = yong2.get('reason', '')
+            # 从 analysis_report 中提取第二用神推导理由
+            reason = extract_yong_reason(analysis_report, "第二用神推导")
 
             st.markdown(f"""
             <div class='success-box' style='border-left-color: #2196F3;'>
@@ -294,34 +298,65 @@ def display_wuxing_tab(bracelet_data):
     # 闲神
     if 'xian_shen' in bracelet_data and bracelet_data['xian_shen']:
         xian_str = "、".join(bracelet_data['xian_shen'])
+        # 提取闲神说明
+        xian_reason = extract_yong_reason(analysis_report, "闲神说明")
+
         st.info(f"⚖️ **闲神（中性五行）**：{xian_str}")
+        if xian_reason:
+            st.markdown(f"""
+            <p style='color: #8c7b5d; font-style: italic; margin: 5px 0; padding: 8px; 
+                     background-color: #15110d; border-radius: 5px; font-size: 14px;'>
+                💡 {xian_reason}
+            </p>
+            """, unsafe_allow_html=True)
 
     # 一级忌神
     if 'ji_shen_1' in bracelet_data and bracelet_data['ji_shen_1']:
         ji1_str = "、".join(bracelet_data['ji_shen_1'])
+        # 提取一级忌神推导
+        ji1_reason = extract_yong_reason(analysis_report, "一级忌神推导")
+
         st.markdown(f"""
         <div class='warning-box'>
             <h3 style='margin: 0 0 10px 0; color: #F44336;'>❌ 一级忌神</h3>
             <p style='font-size: 18px;'>{ji1_str}</p>
-        </div>
         """, unsafe_allow_html=True)
+
+        if ji1_reason:
+            st.markdown(f"""
+            <p style='color: #ff9999; font-style: italic; margin: 10px 0; padding: 8px; 
+                     background-color: #2a1a1a; border-radius: 5px; font-size: 14px;'>
+                ⚠️ {ji1_reason}
+            </p>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # 二级忌神
     if 'ji_shen_2' in bracelet_data and bracelet_data['ji_shen_2']:
         ji2_str = "、".join(bracelet_data['ji_shen_2'])
+        # 提取二级忌神推导
+        ji2_reason = extract_yong_reason(analysis_report, "二级忌神推导")
+
         st.warning(f"⚠️ **二级忌神（轻微拖累）**：{ji2_str}")
+        if ji2_reason:
+            st.markdown(f"""
+            <p style='color: #ccaa88; font-style: italic; margin: 5px 0; padding: 8px; 
+                     background-color: #1a1510; border-radius: 5px; font-size: 14px;'>
+                ℹ️ {ji2_reason}
+            </p>
+            """, unsafe_allow_html=True)
 
     st.divider()
 
     # ==============================================
     # 专业分析报告（简化版，只显示核心内容）
     # ==============================================
-    if 'analysis_report' in bracelet_data and bracelet_data['analysis_report']:
+    if analysis_report:
         st.subheader("📖 完整分析报告")
-        report = bracelet_data['analysis_report']
 
         # 分段显示
-        sections = report.split("\n\n")
+        sections = analysis_report.split("\n\n")
         for section in sections:
             if section.strip():
                 if section.startswith("【"):
@@ -342,14 +377,27 @@ def display_wuxing_tab(bracelet_data):
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 材质对照表
-    st.subheader("📚 五行材质对照表")
-    for wx, materials in WUXING_MATERIAL.items():
-        with st.expander(f"{wx} ({materials['color']})"):
-            st.write(f"**基础材质**：{materials['base']}")
-            st.write(f"**升级材质**：{materials['up']}")
 
-    st.markdown('</div>', unsafe_allow_html=True)
+def extract_yong_reason(analysis_report, section_name):
+    """从分析报告中提取指定章节的推导理由"""
+    if not analysis_report or not section_name:
+        return ""
+
+    try:
+        search_key = f"【{section_name}】"
+        if search_key in analysis_report:
+            # 提取该章节内容
+            temp = analysis_report.split(search_key)[1]
+            # 找到下一个【或结尾
+            if "【" in temp:
+                reason = temp.split("【")[0].strip()
+            else:
+                reason = temp.strip()
+            return reason
+    except Exception as e:
+        print(f"提取推导理由失败: {e}")
+
+    return ""
 
 
 def display_debt_tab(year):
