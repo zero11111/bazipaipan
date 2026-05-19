@@ -4,8 +4,56 @@
 移动端优化 - 上下布局
 """
 
-import streamlit as st
 import sys
+import types
+
+# ==============================================
+# 【关键修复】在导入任何模块前，创建虚拟 GUI 模块
+# ==============================================
+def create_fake_module(name):
+    """创建虚拟模块以避免导入错误"""
+    module = types.ModuleType(name)
+    module.__file__ = f"/fake/{name}.py"
+    sys.modules[name] = module
+    return module
+
+# 创建假的 tkinter 和 customtkinter 模块
+fake_tk = create_fake_module('tkinter')
+fake_tk.Tk = object
+fake_tk.Frame = object
+fake_tk.Label = object
+fake_tk.Button = object
+fake_tk.StringVar = object
+fake_tk.IntVar = object
+fake_tk.BooleanVar = object
+fake_tk.DoubleVar = object
+fake_tk.messagebox = types.ModuleType('messagebox')
+fake_tk.messagebox.showerror = lambda *args, **kwargs: None
+fake_tk.messagebox.showinfo = lambda *args, **kwargs: None
+fake_tk.font = types.ModuleType('font')
+fake_tk.font.Font = object
+fake_tk.scrolledtext = types.ModuleType('scrolledtext')
+fake_tk.scrolledtext.ScrolledText = object
+fake_tk.ttk = types.ModuleType('ttk')
+fake_tk.ttk.Treeview = object
+fake_tk.ttk.Style = object
+
+fake_ctk = create_fake_module('customtkinter')
+fake_ctk.CTk = object
+fake_ctk.CTkFrame = object
+fake_ctk.CTkButton = object
+fake_ctk.CTkLabel = object
+fake_ctk.CTkEntry = object
+fake_ctk.CTkComboBox = object
+fake_ctk.CTkRadioButton = object
+fake_ctk.CTkCheckBox = object
+fake_ctk.CTkTextbox = object
+fake_ctk.CTkTabview = object
+fake_ctk.set_appearance_mode = lambda x: None
+fake_ctk.set_default_color_theme = lambda x: None
+
+# 现在可以安全导入 debt_query10 了
+import streamlit as st
 import os
 
 # ==============================================
@@ -17,6 +65,8 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"
 )
+
+# ... 其余代码保持不变 ...
 
 # ==============================================
 # CSS 样式（移动端优化）
