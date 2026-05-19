@@ -111,17 +111,29 @@ st.markdown("""
 # 导入完整计算引擎
 # ==============================================
 try:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from debt_query10 import (
-        calc_bazi,
-        query_debt_by_year,
-        CITY_COORDINATES,
-        WUXING_MATERIAL
-    )
-    ENGINE_LOADED = True
+    from bazi_engine_wrapper import load_engine
+
+    engine = load_engine()
+
+    if engine['loaded']:
+        calc_bazi = engine['calc_bazi']
+        query_debt_by_year = engine['query_debt_by_year']
+        CITY_COORDINATES = engine['CITY_COORDINATES']
+        WUXING_MATERIAL = engine['WUXING_MATERIAL']
+        ENGINE_LOADED = True
+        st.success("✅ 已加载完整版计算引擎")
+    else:
+        st.error(f"❌ 无法加载计算引擎: {engine['error']}")
+        ENGINE_LOADED = False
+        # 提供默认值
+        CITY_COORDINATES = {"北京": (116.4074, 39.9042)}
+        WUXING_MATERIAL = {}
+
 except Exception as e:
-    st.error(f"❌ 无法加载计算引擎: {e}")
+    st.error(f"❌ 导入失败: {e}")
     ENGINE_LOADED = False
+    CITY_COORDINATES = {"北京": (116.4074, 39.9042)}
+    WUXING_MATERIAL = {}
 
 # ==============================================
 # 函数定义（必须在调用之前）
