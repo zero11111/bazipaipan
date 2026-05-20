@@ -6,6 +6,9 @@
 
 import sys
 import types
+import json
+import os
+from datetime import datetime
 
 # ==============================================
 # 【关键修复】在导入任何模块前，创建虚拟 GUI 模块
@@ -54,7 +57,6 @@ fake_ctk.set_default_color_theme = lambda x: None
 
 # 现在可以安全导入 debt_query10 了
 import streamlit as st
-import os
 
 # ==============================================
 # 页面配置（必须在最前面）
@@ -189,6 +191,71 @@ except Exception as e:
 # 函数定义（必须在调用之前）
 # ==============================================
 
+HISTORY_FILE = "bazi_history.json"
+MAX_HISTORY = 10
+
+def load_history():
+    """加载历史记录"""
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_history(history):
+    """保存历史记录"""
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"保存历史记录失败: {e}")
+
+def add_to_history(record):
+    """添加记录到历史（保留最近10条）"""
+    history = load_history()
+
+    # 添加到开头
+    history.insert(0, record)
+
+    # 只保留最近10条
+    if len(history) > MAX_HISTORY:
+        history = history[:MAX_HISTORY]
+
+    save_history(history)
+    return history
+
+def display_history():
+    """显示历史记录列表"""
+    history = load_history()
+
+    if not history:
+        return None
+
+    st.markdown("### 📜 最近排盘记录")
+
+    selected_record = None
+
+    for idx, record in enumerate(history):
+        timestamp = record.get('timestamp', '')
+        gender = record.get('gender_label', '')
+        solar_time = record.get('solar_time', '')
+        master = record.get('master', '')
+
+        # 格式化显示
+        display_text = f"{timestamp} | {gender} | {solar_time} | 日主:{master}"
+
+        # 使用可点击的按钮
+        if st.button(display_text, key=f"history_{idx}", use_container_width=True):
+            selected_record = record
+
+    if selected_record:
+        st.divider()
+        return selected_record
+
+    return None
+
 def show_welcome():
     """显示欢迎界面"""
     st.markdown("""
@@ -208,7 +275,6 @@ def show_welcome():
         </p>
     </div>
     """, unsafe_allow_html=True)
-
 
 def display_bazi_tab(bracelet_data, table_data=None):
     """显示八字排盘标签页"""
@@ -543,6 +609,11 @@ else:
     st.warning("⚠️ 计算引擎加载失败")
 
 # ==============================================
+# 历史记录区（放在输入区之前）
+# ==============================================
+selected_history = display_history()
+
+# ==============================================
 # 输入区（改为卡片式上下布局）
 # ==============================================
 with st.container():
@@ -594,7 +665,6 @@ query_button = st.button("🔮 开始排盘", type="primary", use_container_widt
 # 主内容区
 # ==============================================
 
-
 if query_button:
     if not ENGINE_LOADED:
         st.error("计算引擎未加载，无法排盘")
@@ -610,7 +680,26 @@ if query_button:
                 if error_msg:
                     st.error(error_msg)
                 elif bracelet_data:
+                    # 显示结果
                     display_results(bracelet_data, year, table_data)
+
+                    # 保存到历史记录
+                    history_record = {
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'year': year,
+                        'month': month,
+                        'day': day,
+                        'hour': hour,
+                        'minute': minute,
+                        'is_lunar': is_lunar,
+                        'gender_short': gender_short,
+                        'city_name': city_name,
+                        'use_true_solar': use_true_solar,
+                        'use_dst': use_dst,
+                        'use_early_zi': use_early_zi,
+                        **bracelet_data
+                    }
+                    add_to_history(history_record)
                 else:
                     st.error("排盘失败，未返回结果")
 
@@ -619,6 +708,36 @@ if query_button:
                 st.error(f"❌ 排盘失败：{str(e)}")
                 with st.expander("查看详细错误"):
                     st.code(traceback.format_exc())
+elif selected_history:
+    # 如果用户点击了历史记录，重新排盘
+    with st.spinner("正在加载历史记录..."):
+        try:
+            table_data, error_msg, bracelet_data = calc_bazi(
+                selected_history['year'],
+                selected_history['month'],
+                selected_history['day'],
+                selected_history['hour'],
+                selected_history['minute'],
+                selected_history['is_lunar'],
+                selected_history['gender_short'],
+                selected_history['city_name'],
+                selected_history.get('use_true_solar', True),
+                selected_history.get('use_dst', False),
+                selected_history.get('use_early_zi', True)
+            )
+
+            if error_msg:
+                st.error(error_msg)
+            elif bracelet_data:
+                display_results(bracelet_data, selected_history['year'], table_data)
+            else:
+                st.error("排盘失败，未返回结果")
+
+        except Exception as e:
+            import traceback
+            st.error(f"❌ 加载失败：{str(e)}")
+            with st.expander("查看详细错误"):
+                st.code(traceback.format_exc())
 else:
     show_welcome()
 
