@@ -210,7 +210,7 @@ def show_welcome():
     """, unsafe_allow_html=True)
 
 
-def display_bazi_tab(bracelet_data):
+def display_bazi_tab(bracelet_data, table_data=None):
     """显示八字排盘标签页"""
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("八字命盘")
@@ -247,14 +247,16 @@ def display_bazi_tab(bracelet_data):
         st.warning(bingzheng_str)
 
     # 四柱表格
-    if 'table_data' in bracelet_data:
+    if table_data:
         st.markdown("### 四柱信息")
         import pandas as pd
 
-        df = pd.DataFrame(bracelet_data['table_data'])
+        df = pd.DataFrame(table_data)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+
 
 
 def display_wuxing_tab(bracelet_data):
@@ -511,19 +513,18 @@ def display_debt_tab(year):
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-def display_results(bracelet_data, year):
+def display_results(bracelet_data, year, table_data=None):
     """显示完整的排盘结果"""
     tab1, tab2, tab3 = st.tabs(["📊 八字排盘", "🧿 五行分析", "💰 受身债"])
 
     with tab1:
-        display_bazi_tab(bracelet_data)
+        display_bazi_tab(bracelet_data, table_data)
 
     with tab2:
         display_wuxing_tab(bracelet_data)
 
     with tab3:
         display_debt_tab(year)
-
 
 # ==============================================
 # 标题区
@@ -593,6 +594,7 @@ query_button = st.button("🔮 开始排盘", type="primary", use_container_widt
 # 主内容区
 # ==============================================
 
+
 if query_button:
     if not ENGINE_LOADED:
         st.error("计算引擎未加载，无法排盘")
@@ -608,7 +610,7 @@ if query_button:
                 if error_msg:
                     st.error(error_msg)
                 elif bracelet_data:
-                    display_results(bracelet_data, year)
+                    display_results(bracelet_data, year, table_data)
                 else:
                     st.error("排盘失败，未返回结果")
 
