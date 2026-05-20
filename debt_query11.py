@@ -160,6 +160,7 @@ st.markdown("""
 # ==============================================
 # 导入完整计算引擎
 # ==============================================
+
 try:
     from bazi_engine_wrapper import load_engine
 
@@ -171,7 +172,6 @@ try:
         CITY_COORDINATES = engine['CITY_COORDINATES']
         WUXING_MATERIAL = engine['WUXING_MATERIAL']
         ENGINE_LOADED = True
-        st.success("✅ 已加载完整版计算引擎")
     else:
         st.error(f"❌ 无法加载计算引擎: {engine['error']}")
         ENGINE_LOADED = False
