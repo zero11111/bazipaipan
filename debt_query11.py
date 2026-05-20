@@ -226,6 +226,9 @@ def add_to_history(record):
     save_history(history)
     return history
 
+
+# ... existing code ...
+
 def display_history():
     """显示历史记录列表"""
     history = load_history()
@@ -255,6 +258,10 @@ def display_history():
         return selected_record
 
     return None
+
+
+# ... existing code ...
+
 
 def show_welcome():
     """显示欢迎界面"""
@@ -592,6 +599,9 @@ def display_results(bracelet_data, year, table_data=None):
     with tab3:
         display_debt_tab(year)
 
+
+# ... existing code ...
+
 # ==============================================
 # 标题区
 # ==============================================
@@ -607,11 +617,6 @@ if ENGINE_LOADED:
     st.success("✅ 已加载完整版计算引擎")
 else:
     st.warning("⚠️ 计算引擎加载失败")
-
-# ==============================================
-# 历史记录区（放在输入区之前）
-# ==============================================
-selected_history = display_history()
 
 # ==============================================
 # 输入区（改为卡片式上下布局）
@@ -665,7 +670,105 @@ query_button = st.button("🔮 开始排盘", type="primary", use_container_widt
 # 主内容区
 # ==============================================
 
-if query_button:
+# 初始化 session state
+if 'selected_history_idx' not in st.session_state:
+    st.session_state.selected_history_idx = None
+if 'last_result' not in st.session_state:
+    st.session_state.last_result = None
+if 'should_rerun' not in st.session_state:
+    st.session_state.should_rerun = False
+
+# ... existing code ...
+
+# 加载历史记录
+history = load_history()
+
+# 显示历史记录列表（如果有）
+if history:
+    st.markdown("---")
+    st.markdown("### 📜 最近排盘记录")
+
+    for idx, record in enumerate(history):
+        timestamp = record.get('timestamp', '')
+        gender_label = record.get('gender_label', '')
+        solar_time = record.get('solar_time', '')
+        master = record.get('master', '')
+
+        # 提取用神信息
+        yong_shen_1 = record.get('yong_shen_1', {})
+        yong_name_1 = yong_shen_1.get('name', '') if isinstance(yong_shen_1, dict) else ''
+
+        yong_shen_2 = record.get('yong_shen_2', {})
+        yong_name_2 = yong_shen_2.get('name', '') if isinstance(yong_shen_2, dict) else ''
+
+        ji_shen_1 = record.get('ji_shen_1', [])
+        ji_str_1 = '、'.join(ji_shen_1) if ji_shen_1 else ''
+
+        # 格式化显示 - 包含用喜忌信息
+        display_parts = [timestamp, gender_label, f"日主:{master}"]
+
+        if yong_name_1:
+            display_parts.append(f"用:{yong_name_1}")
+        if yong_name_2:
+            display_parts.append(f"喜:{yong_name_2}")
+        if ji_str_1:
+            display_parts.append(f"忌:{ji_str_1}")
+
+        display_text = " | ".join(display_parts)
+
+        # 使用可点击的按钮
+        if st.button(display_text, key=f"hist_btn_{idx}", use_container_width=True):
+            st.session_state.selected_history_idx = idx
+            st.session_state.should_rerun = True
+            st.rerun()
+
+# ... existing code ...
+
+
+# 处理历史记录点击
+if st.session_state.selected_history_idx is not None and st.session_state.selected_history_idx < len(history):
+    selected_record = history[st.session_state.selected_history_idx]
+
+    st.divider()
+    st.info(f"📌 正在查看历史记录：{selected_record.get('timestamp', '')}")
+
+    with st.spinner("正在加载历史记录..."):
+        try:
+            table_data, error_msg, bracelet_data = calc_bazi(
+                selected_record['year'],
+                selected_record['month'],
+                selected_record['day'],
+                selected_record['hour'],
+                selected_record['minute'],
+                selected_record['is_lunar'],
+                selected_record['gender_short'],
+                selected_record['city_name'],
+                selected_record.get('use_true_solar', True),
+                selected_record.get('use_dst', False),
+                selected_record.get('use_early_zi', True)
+            )
+
+            if error_msg:
+                st.error(error_msg)
+            elif bracelet_data:
+                display_results(bracelet_data, selected_record['year'], table_data)
+
+                # 保存结果到 session state
+                st.session_state.last_result = {
+                    'bracelet_data': bracelet_data,
+                    'year': selected_record['year'],
+                    'table_data': table_data
+                }
+            else:
+                st.error("排盘失败，未返回结果")
+
+        except Exception as e:
+            import traceback
+            st.error(f"❌ 加载失败：{str(e)}")
+            with st.expander("查看详细错误"):
+                st.code(traceback.format_exc())
+
+elif query_button:
     if not ENGINE_LOADED:
         st.error("计算引擎未加载，无法排盘")
     else:
@@ -680,6 +783,9 @@ if query_button:
                 if error_msg:
                     st.error(error_msg)
                 elif bracelet_data:
+                    # 清除选中的历史记录
+                    st.session_state.selected_history_idx = None
+
                     # 显示结果
                     display_results(bracelet_data, year, table_data)
 
@@ -700,6 +806,16 @@ if query_button:
                         **bracelet_data
                     }
                     add_to_history(history_record)
+
+                    # 保存最后一次的完整结果
+                    st.session_state.last_result = {
+                        'bracelet_data': bracelet_data,
+                        'year': year,
+                        'table_data': table_data
+                    }
+
+                    # 触发页面刷新以显示新的历史记录
+                    st.rerun()
                 else:
                     st.error("排盘失败，未返回结果")
 
@@ -708,38 +824,17 @@ if query_button:
                 st.error(f"❌ 排盘失败：{str(e)}")
                 with st.expander("查看详细错误"):
                     st.code(traceback.format_exc())
-elif selected_history:
-    # 如果用户点击了历史记录，重新排盘
-    with st.spinner("正在加载历史记录..."):
-        try:
-            table_data, error_msg, bracelet_data = calc_bazi(
-                selected_history['year'],
-                selected_history['month'],
-                selected_history['day'],
-                selected_history['hour'],
-                selected_history['minute'],
-                selected_history['is_lunar'],
-                selected_history['gender_short'],
-                selected_history['city_name'],
-                selected_history.get('use_true_solar', True),
-                selected_history.get('use_dst', False),
-                selected_history.get('use_early_zi', True)
-            )
 
-            if error_msg:
-                st.error(error_msg)
-            elif bracelet_data:
-                display_results(bracelet_data, selected_history['year'], table_data)
-            else:
-                st.error("排盘失败，未返回结果")
+elif st.session_state.last_result:
+    # 显示上次的排盘结果
+    result = st.session_state.last_result
+    display_results(result['bracelet_data'], result['year'], result['table_data'])
 
-        except Exception as e:
-            import traceback
-            st.error(f"❌ 加载失败：{str(e)}")
-            with st.expander("查看详细错误"):
-                st.code(traceback.format_exc())
 else:
     show_welcome()
+
+# ... existing code ...
+
 
 # ==============================================
 # 页脚
